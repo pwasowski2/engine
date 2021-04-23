@@ -5,6 +5,7 @@
 #include "platform_channel.h"
 
 #include <app.h>
+#include <feedback.h> // TODO add to build
 
 #include "flutter/shell/platform/common/cpp/json_method_codec.h"
 #include "flutter/shell/platform/tizen/tizen_log.h"
@@ -24,6 +25,62 @@ PlatformChannel::PlatformChannel(flutter::BinaryMessenger* messenger)
 
 PlatformChannel::~PlatformChannel() {}
 
+namespace {
+
+class HapticFeedbackManager {
+public:
+  HapticFeedbackManager() {
+    // TODO: log
+    auto ret = feedback_initialize();
+    if (FEEDBACK_ERROR_NONE != ret) {
+      //TODO log
+      return;
+    }
+
+    bool supported = false;
+    ret = feedback_is_supported_pattern(FEEDBACK_TYPE_VIBRATION, FEEDBACK_PATTERN_SIP, &supported);
+    if (FEEDBACK_EROR_NONE != ret) {
+      //TODO log
+      return;
+    }
+    
+    //TODO log supported
+    properly_initialized_ = supported;
+  }
+
+  bool IsProperlyInitialized() {
+    return properly_initialized_;
+  }
+
+  ~HapticFeedbackManager() {
+    auto ret = feedback_deinitialize();
+    if (FEEDBACK_ERROR_NONE != ret) {
+      //TODO: log;
+    }
+    properly_initialized_ = false;
+  }
+
+  void Vibrate() {
+    if (!properly_initialized_) {
+      //TODO: log; throw? return an error code?
+      return;
+    }
+
+    auto ret = feedback_play(FEEDBACK_TYPE_VIBRATION, FEEDBACK_PATTERN_SIP);
+    if (FEEDBACK_ERROR_NONE != ret) {
+      //TODO: log; throw?
+      return;
+    }
+    //TODO: LOG
+  }
+
+private:
+  bool properly_initialized_ = false;
+};
+
+} //  namespace
+
+
 void PlatformChannel::HandleMethodCall(
     const flutter::MethodCall<rapidjson::Document>& call,
     std::unique_ptr<flutter::MethodResult<rapidjson::Document>> result) {
@@ -36,6 +93,9 @@ void PlatformChannel::HandleMethodCall(
     result->NotImplemented();
   } else if (method == "HapticFeedback.vibrate") {
     result->NotImplemented();
+
+
+
   } else if (method == "Clipboard.getData") {
     result->NotImplemented();
   } else if (method == "Clipboard.setData") {
