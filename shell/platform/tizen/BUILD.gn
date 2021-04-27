@@ -52,6 +52,7 @@ config("tizen_rootstrap_include_dirs") {
     "$custom_sysroot/usr/include/emile-1",
     "$custom_sysroot/usr/include/eo-1",
     "$custom_sysroot/usr/include/evas-1",
+    "$custom_sysroot/usr/include/feedback",
     "$custom_sysroot/usr/include/system",
     "$custom_sysroot/usr/include/wayland-extension",
     # For Evas_GL.
@@ -64,7 +65,6 @@ config("tizen_rootstrap_include_dirs") {
     "$custom_sysroot/usr/include/elementary-1",
     "$custom_sysroot/usr/include/ethumb-1",
     "$custom_sysroot/usr/include/ethumb-client-1",
-    "$custom_sysroot/usr/include/feedback"
   ]
 
   lib_dirs = [ "$custom_sysroot/usr/lib" ]

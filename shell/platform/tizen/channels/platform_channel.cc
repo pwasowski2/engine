@@ -12,7 +12,7 @@
 
 static constexpr char kChannelName[] = "flutter/platform";
 
-#if defined(MOBILE) || defined(WEARABLE)
+#if defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
 static constexpr char kUnsupportedHapticFeedbackError[] =
     "HapticFeedback.vibrate() is not supported";
 static constexpr char kPermissionDeniedHapticFeedbackError[] =
@@ -21,7 +21,7 @@ static constexpr char kPermissionDeniedHapticFeedbackError[] =
     "to use this method";
 static constexpr char kUnknownHapticFeedbackError[] =
     "An unknown error on HapticFeedback.vibrate()";
-#endif
+#endif // defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
 
 PlatformChannel::PlatformChannel(flutter::BinaryMessenger* messenger)
     : channel_(std::make_unique<flutter::MethodChannel<rapidjson::Document>>(
@@ -36,7 +36,7 @@ PlatformChannel::PlatformChannel(flutter::BinaryMessenger* messenger)
 
 PlatformChannel::~PlatformChannel() {}
 
-#if defined(MOBILE) || defined(WEARABLE)
+#if defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
 namespace {
 
 class FeedbackManager {
@@ -132,7 +132,7 @@ class FeedbackManager {
 };
 
 }  //  namespace
-#endif
+#endif // defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
 
 void PlatformChannel::HandleMethodCall(
     const flutter::MethodCall<rapidjson::Document>& call,
@@ -147,7 +147,7 @@ void PlatformChannel::HandleMethodCall(
   } else if (method == "HapticFeedback.vibrate") {
     FT_LOGD("HapticFeedback.vibrate() call received");
 
-#if defined(MOBILE) || defined(WEARABLE)
+#if defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
     auto ret = FeedbackManager::GetInstance().Vibrate();
     if (FeedbackManager::ResultCode::OK == ret) {
       result->Success();
@@ -164,7 +164,7 @@ void PlatformChannel::HandleMethodCall(
     }
 #else
     result->NotImplemented();
-#endif
+#endif // defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
   } else if (method == "Clipboard.getData") {
     result->NotImplemented();
   } else if (method == "Clipboard.setData") {
