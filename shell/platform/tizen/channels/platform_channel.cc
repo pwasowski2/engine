@@ -5,6 +5,7 @@
 #include "platform_channel.h"
 
 #include <app.h>
+#include <feedback.h>
 
 #include "flutter/shell/platform/common/cpp/json_method_codec.h"
 #include "flutter/shell/platform/tizen/tizen_log.h"
@@ -47,6 +48,47 @@ class FeedbackManager {
     UNKNOWN_ERROR
   };
 
+  static FeedbackManager& GetInstance() {
+    FT_LOGD("Enter FeedbackManager::GetInstance()");
+
+    static FeedbackManager instance;
+    return instance;
+  }
+
+  FeedbackManager(const FeedbackManager&) = delete;
+  FeedbackManager& operator=(const FeedbackManager&) = delete;
+
+  ResultCode Vibrate() {
+    FT_LOGD("Enter FeedbackManager::Vibrate()");
+
+    if (!properly_initialized_) {
+      FT_LOGD(
+          "Cannot run Vibrate(): FeedbackManager.properly_initialized_ is "
+          "false");
+      return ResultCode::UNKNOWN_ERROR;
+    }
+
+    if (!vibration_supported_) {
+      FT_LOGD("HapticFeedback.Vibrate() is not supported");
+      return ResultCode::NOT_SUPPORTED_ERROR;
+    }
+
+    auto ret =
+        feedback_play_type(FEEDBACK_TYPE_VIBRATION, FEEDBACK_PATTERN_SIP);
+    FT_LOGD("feedback_play_type() returned: [%d] (%s)", ret,
+            get_error_message(ret));
+    if (FEEDBACK_ERROR_NONE == ret) {
+      return ResultCode::OK;
+    } else if (FEEDBACK_ERROR_PERMISSION_DENIED == ret) {
+      return ResultCode::UNKNOWN_ERROR;
+    } else if (FEEDBACK_ERROR_NOT_SUPPORTED) {
+      return ResultCode::NOT_SUPPORTED_ERROR;
+    } else {
+      return ResultCode::UNKNOWN_ERROR;
+    }
+  }
+
+ private:
   FeedbackManager() {
     FT_LOGD("Enter FeedbackManager::FeedbackManager()");
 
@@ -85,37 +127,6 @@ class FeedbackManager {
     FT_LOGD("feedback_deinitialize() succeeded");
   }
 
-  ResultCode Vibrate() {
-    FT_LOGD("Enter FeedbackManager::Vibrate()");
-
-    if (!properly_initialized_) {
-      FT_LOGD(
-          "Cannot run Vibrate(): FeedbackManager.properly_initialized_ is "
-          "false");
-      return ResultCode::UNKNOWN_ERROR;
-    }
-
-    if (!vibration_supported_) {
-      FT_LOGD("HapticFeedback.Vibrate() is not supported");
-      return ResultCode::NOT_SUPPORTED_ERROR;
-    }
-
-    auto ret =
-        feedback_play_type(FEEDBACK_TYPE_VIBRATION, FEEDBACK_PATTERN_SIP);
-    FT_LOGD("feedback_play_type() returned: [%d] (%s)", ret,
-            get_error_message(ret));
-    if (FEEDBACK_ERROR_NONE == ret) {
-      return ResultCode::OK;
-    } else if (FEEDBACK_ERROR_PERMISSION_DENIED == ret) {
-      return ResultCode::UNKNOWN_ERROR;
-    } else if (FEEDBACK_ERROR_NOT_SUPPORTED) {
-      return ResultCode::NOT_SUPPORTED_ERROR;
-    } else {
-      return ResultCode::UNKNOWN_ERROR;
-    }
-  }
-
- private:
   bool properly_initialized_ = false;
   bool vibration_supported_ = false;
 };
@@ -137,9 +148,7 @@ void PlatformChannel::HandleMethodCall(
     FT_LOGD("HapticFeedback.vibrate() call received");
 
 #if defined(MOBILE) || defined(WEARABLE)
-    static FeedbackManager feedback_mgr;
-
-    auto ret = feedback_mgr.Vibrate();
+    auto ret = FeedbackManager::GetInstance().Vibrate();
     if (FeedbackManager::ResultCode::OK == ret) {
       result->Success();
       return;
