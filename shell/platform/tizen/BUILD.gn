@@ -80,6 +80,8 @@ template("embedder_for_profile") {
   if (!defined(use_evas_gl_renderer)) {
     use_evas_gl_renderer = false
   }
+  
+  print("target_name before 'shared_library()': ${target_name}")
 
   shared_library("flutter_tizen_${target_name}") {
     public = _public_headers
@@ -120,6 +122,20 @@ template("embedder_for_profile") {
       "tdm-client",
       "wayland-client",
     ]
+
+    print("target_name in 'shared_library()': ${target_name}")
+
+    if (target_name == "mobile") {
+      print("target_name == \"mobile\" is TRUE")
+    } else {
+      print("target_name == \"mobile\" is FALSE")
+    }
+
+    if (target_name == "flutter_tizen_mobile") {
+      print("target_name == \"flutter_tizen_mobile\" is TRUE")
+    } else {
+      print("target_name == \"flutter_tizen_mobile\" is FALSE")
+    }
 
     defines = invoker.defines
 
@@ -163,6 +179,8 @@ template("embedder_for_profile") {
       "//third_party/rapidjson",
     ]
   }
+  
+  print("target_name after 'shared_library()': ${target_name}")
 }
 
 embedder_for_profile("mobile") {
