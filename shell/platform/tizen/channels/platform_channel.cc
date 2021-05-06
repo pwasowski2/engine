@@ -25,7 +25,6 @@ PlatformChannel::PlatformChannel(flutter::BinaryMessenger* messenger)
 
 PlatformChannel::~PlatformChannel() {}
 
-#if defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
 namespace {
 
 class FeedbackManager {
@@ -37,54 +36,24 @@ class FeedbackManager {
     kUnknownError
   };
 
-  static FeedbackManager& GetInstance() {
-    FT_LOGD("Enter FeedbackManager::GetInstance()");
+  static std::string GetVibrateVariantName(const char* haptic_feedback_type) {
+    FT_LOGD(
+        "Enter FeedbackManager::GetVibrateVariantName(): haptic_feedback_type: "
+        "(%s)",
+        haptic_feedback_type);
 
-    static FeedbackManager instance;
-    return instance;
-  }
-
-  FeedbackManager(const FeedbackManager&) = delete;
-  FeedbackManager& operator=(const FeedbackManager&) = delete;
-
-  ResultCode Vibrate() {
-    FT_LOGD("Enter FeedbackManager::Vibrate()");
-
-    if (!properly_initialized_) {
-      FT_LOGD(
-          "Cannot run Vibrate(): FeedbackManager.properly_initialized_ is "
-          "false");
-      return ResultCode::kUnknownError;
+    if (!haptic_feedback_type) {
+      return "HapticFeedback.vibrate";
     }
 
-    if (!permission_granted_) {
-      FT_LOGD("Cannot run Vibrate(): permission denied");
-      return ResultCode::kPermissionDeniedError;
-    }
+    const size_t kPrefixToRemoveLen = strlen("HapticFeedbackType.");
 
-    if (!vibration_supported_) {
-      FT_LOGD("HapticFeedback.Vibrate() is not supported");
-      return ResultCode::kNotSupportedError;
-    }
+    assert(strlen(haptic_feedback_type) >= kPrefixToRemoveLen);
 
-    auto ret =
-        feedback_play_type(FEEDBACK_TYPE_VIBRATION, FEEDBACK_PATTERN_SIP);
-    if (FEEDBACK_ERROR_NONE == ret) {
-      FT_LOGD("feedback_play_type() succeeded");
-      return ResultCode::kOk;
-    }
+    const std::string kHapticFeedbackPrefix = "HapticFeedback.";
 
-    FT_LOGD("feedback_play_type() failed with error: [%d] (%s)", ret,
-            get_error_message(ret));
-
-    if (FEEDBACK_ERROR_PERMISSION_DENIED == ret) {
-      permission_granted_ = false;
-      return ResultCode::kPermissionDeniedError;
-    } else if (FEEDBACK_ERROR_NOT_SUPPORTED) {
-      return ResultCode::kNotSupportedError;
-    } else {
-      return ResultCode::kUnknownError;
-    }
+    return kHapticFeedbackPrefix +
+           std::string{haptic_feedback_type + kPrefixToRemoveLen};
   }
 
   static std::string GetErrorMessage(const std::string& method_name,
@@ -105,11 +74,63 @@ class FeedbackManager {
                "to use this method";
       case ResultCode::kUnknownError:
       default:
-        return std::string{"An unknown error on "} + method_name + "()";
+        return std::string{"An unknown error on "} + method_name + "() call";
     }
   }
 
+#if defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
+
+  static FeedbackManager& GetInstance() {
+    FT_LOGD("Enter FeedbackManager::GetInstance()");
+
+    static FeedbackManager instance;
+    return instance;
+  }
+
+  FeedbackManager(const FeedbackManager&) = delete;
+  FeedbackManager& operator=(const FeedbackManager&) = delete;
+
+  ResultCode Vibrate() {
+    FT_LOGD("Enter FeedbackManager::Vibrate()");
+
+    if (ResultCode::kOk != initialization_status_) {
+      FT_LOGD("Cannot run Vibrate(): initialization_status_: [%d]",
+              static_cast<int>(initialization_status_));
+      return initialization_status_;
+    }
+
+    auto ret =
+        feedback_play_type(FEEDBACK_TYPE_VIBRATION, FEEDBACK_PATTERN_SIP);
+    if (FEEDBACK_ERROR_NONE == ret) {
+      FT_LOGD("feedback_play_type() succeeded");
+      return ResultCode::kOk;
+    }
+    FT_LOGD("feedback_play_type() failed with error: [%d] (%s)", ret,
+            get_error_message(ret));
+
+    return NativeErrorToResultCode(ret);
+  }
+
  private:
+  static ResultCode NativeErrorToResultCode(int native_error_code) {
+    FT_LOGD("Enter NativeErrorToResultCode: native_error_code: [%d]",
+            native_error_code);
+
+    switch (native_error_code) {
+      case FEEDBACK_ERROR_NONE:
+        return ResultCode::kOk;
+      case FEEDBACK_ERROR_NOT_SUPPORTED:
+        return ResultCode::kNotSupportedError;
+      case FEEDBACK_ERROR_PERMISSION_DENIED:
+        return ResultCode::kPermissionDeniedError;
+      case FEEDBACK_ERROR_OPERATION_FAILED:
+      case FEEDBACK_ERROR_INVALID_PARAMETER:
+      case FEEDBACK_ERROR_NOT_INITIALIZED:
+      default:
+        return ResultCode::kUnknownError;
+    }
+  }
+
   FeedbackManager() {
     FT_LOGD("Enter FeedbackManager::FeedbackManager()");
 
@@ -117,33 +138,16 @@ class FeedbackManager {
     if (FEEDBACK_ERROR_NONE != ret) {
       FT_LOGD("feedback_initialize() failed with error: [%d] (%s)", ret,
               get_error_message(ret));
+      initialization_status_ = NativeErrorToResultCode(ret);
       return;
     }
     FT_LOGD("feedback_initialize() succeeded");
-    properly_initialized_ = true;
 
-    ret = feedback_is_supported_pattern(
-        FEEDBACK_TYPE_VIBRATION, FEEDBACK_PATTERN_SIP, &vibration_supported_);
-    if (FEEDBACK_ERROR_NONE == ret) {
-      FT_LOGD("feedback_is_supported_pattern() succeeded");
-      return;
-    }
-
-    FT_LOGD("feedback_is_supported_pattern() failed with error: [%d] (%s)", ret,
-            get_error_message(ret));
-    if (FEEDBACK_ERROR_PERMISSION_DENIED == ret) {
-      permission_granted_ = false;
-    } else if (FEEDBACK_ERROR_NONE != ret) {
-      return;
-    }
+    initialization_status_ = ResultCode::kOk;
   }
 
   ~FeedbackManager() {
     FT_LOGD("Enter FeedbackManager::~FeedbackManager");
-
-    if (!properly_initialized_) {
-      return;
-    }
 
     auto ret = feedback_deinitialize();
     if (FEEDBACK_ERROR_NONE != ret) {
@@ -154,17 +158,12 @@ class FeedbackManager {
     FT_LOGD("feedback_deinitialize() succeeded");
   }
 
-  bool properly_initialized_ = false;
-  /*
-   * We need this flag to differentiate between feedback_is_supported_pattern()
-   * failure due to a missing privilege and other causes.
-   */
-  bool permission_granted_ = true;
-  bool vibration_supported_ = false;
+  ResultCode initialization_status_ = ResultCode::kUnknownError;
+
+#endif  // defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
 };
 
 }  //  namespace
-#endif  // defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
 
 void PlatformChannel::HandleMethodCall(
     const flutter::MethodCall<rapidjson::Document>& call,
@@ -180,8 +179,6 @@ void PlatformChannel::HandleMethodCall(
     FT_LOGD("HapticFeedback.vibrate() call received");
 
     const std::string error_message = "Could not vibrate";
-
-    const auto vibrate_variant_name = call.arguments()->GetString();
 
 #if defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
     /*
@@ -199,15 +196,19 @@ void PlatformChannel::HandleMethodCall(
       return;
     }
 
+    const auto vibrate_variant_name =
+        FeedbackManager::GetVibrateVariantName(call.arguments()[0].GetString());
     const auto error_cause =
         FeedbackManager::GetErrorMessage(vibrate_variant_name, ret);
     FT_LOGE("%s: %s", error_cause.c_str(), error_message.c_str());
-    result->Error(error_cause, error_message);
 #else
-    const auto error_cause =
-        std::string{vibrate_variant_name} + "() is not supported";
-    result->Error(error_cause.c_str(), error_message.c_str());
+    const auto vibrate_variant_name =
+        FeedbackManager::GetVibrateVariantName(call.arguments()[0].GetString());
+    const auto error_cause = FeedbackManager::GetErrorMessage(
+        vibrate_variant_name, FeedbackManager::ResultCode::kNotSupportedError);
 #endif  // defined(MOBILE_PROFILE) || defined(WEARABLE_PROFILE)
+
+    result->Error(error_cause, error_message);
   } else if (method == "Clipboard.getData") {
     result->NotImplemented();
   } else if (method == "Clipboard.setData") {
