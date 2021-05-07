@@ -94,7 +94,7 @@ class FeedbackManager {
     FT_LOGD("Enter FeedbackManager::Vibrate()");
 
     if (ResultCode::kOk != initialization_status_) {
-      FT_LOGD("Cannot run Vibrate(): initialization_status_: [%d]",
+      FT_LOGE("Cannot run Vibrate(): initialization_status_: [%d]",
               static_cast<int>(initialization_status_));
       return initialization_status_;
     }
@@ -105,7 +105,7 @@ class FeedbackManager {
       FT_LOGD("feedback_play_type() succeeded");
       return ResultCode::kOk;
     }
-    FT_LOGD("feedback_play_type() failed with error: [%d] (%s)", ret,
+    FT_LOGE("feedback_play_type() failed with error: [%d] (%s)", ret,
             get_error_message(ret));
 
     return NativeErrorToResultCode(ret);
@@ -136,7 +136,7 @@ class FeedbackManager {
 
     auto ret = feedback_initialize();
     if (FEEDBACK_ERROR_NONE != ret) {
-      FT_LOGD("feedback_initialize() failed with error: [%d] (%s)", ret,
+      FT_LOGE("feedback_initialize() failed with error: [%d] (%s)", ret,
               get_error_message(ret));
       initialization_status_ = NativeErrorToResultCode(ret);
       return;
@@ -151,7 +151,7 @@ class FeedbackManager {
 
     auto ret = feedback_deinitialize();
     if (FEEDBACK_ERROR_NONE != ret) {
-      FT_LOGD("feedback_deinitialize() failed with error: [%d] (%s)", ret,
+      FT_LOGE("feedback_deinitialize() failed with error: [%d] (%s)", ret,
               get_error_message(ret));
       return;
     }
