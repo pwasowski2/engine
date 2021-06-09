@@ -172,9 +172,7 @@ template("embedder_for_profile") {
     ]
 
     if (enable_profiling) {
-      deps += [
-        "//flutter/runtime:libdart"
-      ]
+      deps += [ "//flutter/runtime:libdart" ]
     }
   }
 }
