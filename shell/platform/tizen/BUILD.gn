@@ -161,7 +161,6 @@ template("embedder_for_profile") {
     public_deps = [ ":flutter_engine" ]
 
     deps = [
-      "//flutter/runtime:libdart",
       "//flutter/shell/platform/common/cpp:common_cpp",
       "//flutter/shell/platform/common/cpp:common_cpp_input",
       "//flutter/shell/platform/common/cpp:common_cpp_library_headers",
