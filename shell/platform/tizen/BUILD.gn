@@ -170,10 +170,6 @@ template("embedder_for_profile") {
       "//flutter/shell/platform/common/cpp/client_wrapper:client_wrapper",
       "//third_party/rapidjson",
     ]
-
-    if (enable_profiling) {
-      deps += [ "//flutter/runtime:libdart" ]
-    }
   }
 }
 
